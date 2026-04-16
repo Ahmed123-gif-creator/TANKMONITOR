@@ -1,0 +1,660 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="theme-color" content="#0a1628">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>مراقب الخزان</title>
+<link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700;900&family=Orbitron:wght@700;900&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg:        #0a1628;
+    --panel:     #0f2040;
+    --panel2:    #142850;
+    --accent:    #00b4d8;
+    --accent2:   #0077b6;
+    --water:     #0096c7;
+    --water-top: #48cae4;
+    --gold:      #f4a261;
+    --danger:    #e63946;
+    --ok:        #2dc653;
+    --warn:      #f4a261;
+    --text:      #e0f0ff;
+    --muted:     #6b8aad;
+    --radius:    18px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Cairo', sans-serif;
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+
+  /* ── STARS BG ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0;
+    background-image:
+      radial-gradient(1px 1px at 10% 20%, rgba(255,255,255,.35) 0%, transparent 100%),
+      radial-gradient(1px 1px at 30% 60%, rgba(255,255,255,.25) 0%, transparent 100%),
+      radial-gradient(1px 1px at 70% 10%, rgba(255,255,255,.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 85% 80%, rgba(255,255,255,.2) 0%, transparent 100%),
+      radial-gradient(1px 1px at 50% 40%, rgba(0,180,216,.4) 0%, transparent 100%),
+      radial-gradient(2px 2px at 20% 85%, rgba(0,180,216,.3) 0%, transparent 100%),
+      radial-gradient(1px 1px at 60% 70%, rgba(255,255,255,.25) 0%, transparent 100%);
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .app {
+    position: relative;
+    z-index: 1;
+    max-width: 480px;
+    margin: 0 auto;
+    padding: 0 0 40px;
+  }
+
+  /* ── HEADER ── */
+  .header {
+    background: linear-gradient(135deg, #0f2040 0%, #0a1628 100%);
+    border-bottom: 1px solid rgba(0,180,216,.2);
+    padding: 18px 20px 14px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .header-icon {
+    width: 44px; height: 44px;
+    background: linear-gradient(135deg, var(--accent2), var(--accent));
+    border-radius: 12px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 22px;
+    flex-shrink: 0;
+    box-shadow: 0 0 16px rgba(0,180,216,.4);
+  }
+  .header-title { font-size: 18px; font-weight: 700; color: var(--text); line-height: 1.2; }
+  .header-sub   { font-size: 11px; color: var(--muted); font-weight: 400; }
+
+  /* ── STATUS BADGE ── */
+  .status-bar {
+    margin: 0 16px;
+    margin-top: 16px;
+    background: var(--panel);
+    border-radius: var(--radius);
+    border: 1px solid rgba(0,180,216,.15);
+    padding: 12px 18px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .status-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    flex-shrink: 0;
+    animation: pulse 2s infinite;
+  }
+  @keyframes pulse {
+    0%,100% { opacity: 1; transform: scale(1); }
+    50%      { opacity: .6; transform: scale(1.3); }
+  }
+  .status-label { font-size: 14px; font-weight: 600; flex: 1; }
+  .status-pct { font-family: 'Orbitron', monospace; font-size: 16px; font-weight: 700; color: var(--accent); }
+
+  /* ── TANK SECTION ── */
+  .tank-section {
+    margin: 16px 16px 0;
+    background: var(--panel);
+    border-radius: var(--radius);
+    border: 1px solid rgba(0,180,216,.15);
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+  .tank-section-title {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 600;
+    letter-spacing: .08em;
+    text-transform: uppercase;
+    margin-bottom: 16px;
+  }
+
+  /* ── THE TANK SVG WRAPPER ── */
+  .tank-wrapper {
+    position: relative;
+    width: 100%;
+    height: 180px;
+  }
+  .tank-svg { width: 100%; height: 100%; }
+
+  /* Water animation */
+  @keyframes wave {
+    0%   { d: path("M0,6 Q25,0 50,6 Q75,12 100,6 L100,40 L0,40 Z"); }
+    50%  { d: path("M0,6 Q25,12 50,6 Q75,0 100,6 L100,40 L0,40 Z"); }
+    100% { d: path("M0,6 Q25,0 50,6 Q75,12 100,6 L100,40 L0,40 Z"); }
+  }
+  .wave-path { animation: wave 3s ease-in-out infinite; }
+
+  /* ── RULER ── */
+  .ruler {
+    position: absolute;
+    left: 4px; top: 0; bottom: 0;
+    width: 28px;
+    display: flex; flex-direction: column; justify-content: space-between;
+    padding: 4px 0;
+  }
+  .ruler-tick { font-size: 8px; color: var(--muted); text-align: right; line-height: 1; }
+
+  /* ── INPUT CARD ── */
+  .input-card {
+    margin: 14px 16px 0;
+    background: var(--panel);
+    border-radius: var(--radius);
+    border: 1px solid rgba(0,180,216,.15);
+    padding: 20px;
+  }
+  .input-label {
+    font-size: 12px;
+    color: var(--muted);
+    font-weight: 600;
+    letter-spacing: .08em;
+    margin-bottom: 10px;
+  }
+  .input-row {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+  .height-input {
+    flex: 1;
+    background: rgba(0,180,216,.07);
+    border: 2px solid rgba(0,180,216,.35);
+    border-radius: 14px;
+    color: var(--accent);
+    font-family: 'Orbitron', monospace;
+    font-size: 28px;
+    font-weight: 700;
+    text-align: center;
+    padding: 12px 16px;
+    outline: none;
+    transition: border-color .2s, box-shadow .2s;
+    -webkit-appearance: none;
+  }
+  .height-input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 20px rgba(0,180,216,.25);
+  }
+  .unit-badge {
+    background: rgba(0,180,216,.12);
+    border: 1px solid rgba(0,180,216,.25);
+    border-radius: 10px;
+    padding: 8px 14px;
+    font-size: 14px;
+    font-weight: 600;
+    color: var(--accent);
+    white-space: nowrap;
+  }
+
+  /* Slider */
+  .slider-row { margin-top: 14px; }
+  input[type=range] {
+    -webkit-appearance: none;
+    width: 100%;
+    height: 6px;
+    border-radius: 3px;
+    background: rgba(0,180,216,.2);
+    outline: none;
+    cursor: pointer;
+  }
+  input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 22px; height: 22px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    box-shadow: 0 0 10px rgba(0,180,216,.5);
+    cursor: pointer;
+  }
+  .slider-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 10px;
+    color: var(--muted);
+    margin-top: 6px;
+  }
+
+  /* ── RESULTS GRID ── */
+  .results-grid {
+    margin: 14px 16px 0;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .result-card {
+    background: var(--panel);
+    border-radius: 16px;
+    border: 1px solid rgba(0,180,216,.12);
+    padding: 16px 14px;
+    position: relative;
+    overflow: hidden;
+    transition: transform .15s;
+  }
+  .result-card:active { transform: scale(.97); }
+  .result-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    border-radius: 16px 16px 0 0;
+  }
+  .result-card.blue::before  { background: linear-gradient(90deg, var(--accent2), var(--accent)); }
+  .result-card.gold::before  { background: linear-gradient(90deg, #e76f51, var(--gold)); }
+  .result-card.green::before { background: linear-gradient(90deg, #1b8a3f, var(--ok)); }
+  .result-card.wide {
+    grid-column: 1 / -1;
+  }
+  .result-label {
+    font-size: 11px;
+    color: var(--muted);
+    font-weight: 600;
+    letter-spacing: .06em;
+    margin-bottom: 8px;
+  }
+  .result-value {
+    font-family: 'Orbitron', monospace;
+    font-size: 24px;
+    font-weight: 700;
+    color: var(--text);
+    line-height: 1;
+    transition: all .4s;
+  }
+  .result-value.big { font-size: 28px; }
+  .result-unit {
+    font-family: 'Cairo', sans-serif;
+    font-size: 12px;
+    color: var(--muted);
+    margin-top: 4px;
+    font-weight: 600;
+  }
+
+  /* ── FILL BAR ── */
+  .fill-bar-wrap {
+    margin-top: 10px;
+  }
+  .fill-bar-track {
+    height: 8px;
+    background: rgba(255,255,255,.07);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .fill-bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width .6s cubic-bezier(.4,0,.2,1);
+    background: linear-gradient(90deg, var(--accent2), var(--accent));
+  }
+
+  /* ── FOOTER NOTE ── */
+  .footer-note {
+    margin: 20px 16px 0;
+    text-align: center;
+    font-size: 11px;
+    color: var(--muted);
+    line-height: 1.7;
+  }
+  .footer-note span {
+    color: rgba(0,180,216,.6);
+  }
+
+  /* ── INSTALL HINT ── */
+  .install-hint {
+    margin: 16px 16px 0;
+    background: rgba(0,180,216,.07);
+    border: 1px dashed rgba(0,180,216,.25);
+    border-radius: 14px;
+    padding: 12px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    font-size: 12px;
+    color: var(--muted);
+  }
+  .install-hint .ico { font-size: 18px; flex-shrink: 0; }
+
+  /* ── ANIMATE numbers ── */
+  @keyframes numPop {
+    0%   { transform: scale(1); }
+    40%  { transform: scale(1.08); }
+    100% { transform: scale(1); }
+  }
+  .pop { animation: numPop .3s ease; }
+</style>
+</head>
+<body>
+<div class="app">
+
+  <!-- HEADER -->
+  <div class="header">
+    <div class="header-icon">🛢</div>
+    <div>
+      <div class="header-title">مراقب الخزان الأفقي</div>
+      <div class="header-sub">قطر 2.8م · طول 3.33م · سعة 21,035 لتر</div>
+    </div>
+  </div>
+
+  <!-- STATUS BAR -->
+  <div class="status-bar">
+    <div class="status-dot" id="statusDot"></div>
+    <div class="status-label" id="statusLabel">جاري الحساب...</div>
+    <div class="status-pct" id="statusPct">--%</div>
+  </div>
+
+  <!-- TANK VISUAL -->
+  <div class="tank-section">
+    <div class="tank-section-title">مستوى الخزان</div>
+    <div class="tank-wrapper">
+      <!-- Ruler -->
+      <div class="ruler">
+        <div class="ruler-tick">100%</div>
+        <div class="ruler-tick">75%</div>
+        <div class="ruler-tick">50%</div>
+        <div class="ruler-tick">25%</div>
+        <div class="ruler-tick">0%</div>
+      </div>
+      <svg class="tank-svg" viewBox="0 0 340 160" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <clipPath id="tankClip">
+            <ellipse cx="170" cy="80" rx="155" ry="70"/>
+          </clipPath>
+          <linearGradient id="waterGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stop-color="#48cae4"/>
+            <stop offset="100%" stop-color="#0077b6"/>
+          </linearGradient>
+          <linearGradient id="shellGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stop-color="#1e3a5f"/>
+            <stop offset="40%"  stop-color="#2a5298"/>
+            <stop offset="100%" stop-color="#0a1628"/>
+          </linearGradient>
+          <linearGradient id="shineGrad" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%"   stop-color="white" stop-opacity=".15"/>
+            <stop offset="100%" stop-color="white" stop-opacity="0"/>
+          </linearGradient>
+          <filter id="glow">
+            <feGaussianBlur stdDeviation="3" result="blur"/>
+            <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+          </filter>
+          <!-- Wave pattern -->
+          <pattern id="wavePattern" x="0" y="0" width="340" height="20" patternUnits="userSpaceOnUse">
+            <animateTransform attributeName="patternTransform" type="translate" from="0 0" to="-340 0" dur="4s" repeatCount="indefinite"/>
+            <path d="M0,10 Q85,0 170,10 Q255,20 340,10 Q425,0 510,10 Q595,20 680,10" stroke="#48cae4" stroke-width="2" fill="none" opacity=".4"/>
+          </pattern>
+        </defs>
+
+        <!-- Tank shell body -->
+        <ellipse cx="170" cy="80" rx="155" ry="70" fill="url(#shellGrad)" stroke="#2a5298" stroke-width="2"/>
+
+        <!-- Water fill (clipped to tank ellipse) -->
+        <g clip-path="url(#tankClip)">
+          <!-- Water body -->
+          <rect id="waterRect" x="15" y="80" width="310" height="130" fill="url(#waterGrad)" opacity=".95"/>
+          <!-- Wave on surface -->
+          <rect id="waveRect" x="15" y="72" width="310" height="20" fill="url(#wavePattern)" opacity=".7"/>
+          <!-- Subtle shimmer -->
+          <rect x="15" y="10" width="310" height="150" fill="url(#shineGrad)"/>
+        </g>
+
+        <!-- Tank rim / highlight -->
+        <ellipse cx="170" cy="80" rx="155" ry="70" fill="none" stroke="#48cae4" stroke-width="1.5" opacity=".3"/>
+        <!-- Top shine -->
+        <ellipse cx="170" cy="46" rx="100" ry="18" fill="white" opacity=".04"/>
+
+        <!-- Bolts decoration -->
+        <g fill="#1e3a5f" stroke="#2a5298" stroke-width="1">
+          <circle cx="30"  cy="50" r="4"/> <circle cx="30"  cy="110" r="4"/>
+          <circle cx="310" cy="50" r="4"/> <circle cx="310" cy="110" r="4"/>
+          <circle cx="170" cy="14" r="4"/> <circle cx="170" cy="146" r="4"/>
+        </g>
+
+        <!-- Level line indicator -->
+        <line id="levelLine" x1="20" y1="80" x2="320" y2="80"
+              stroke="#48cae4" stroke-width="1.5" stroke-dasharray="6,4" opacity=".5" filter="url(#glow)"/>
+
+        <!-- Level label -->
+        <text id="levelLabel" x="170" y="76" text-anchor="middle"
+              font-family="Cairo,sans-serif" font-size="11" fill="#48cae4" opacity=".8">
+          --.-  سم
+        </text>
+      </svg>
+    </div>
+  </div>
+
+  <!-- INPUT -->
+  <div class="input-card">
+    <div class="input-label">أدخل الارتفاع</div>
+    <div class="input-row">
+      <input class="height-input" type="number" id="heightInput"
+             value="130" min="5" max="275" inputmode="numeric" placeholder="0">
+      <div class="unit-badge">سم</div>
+    </div>
+    <div class="slider-row">
+      <input type="range" id="heightSlider" min="5" max="275" value="130" step="1">
+      <div class="slider-labels"><span>0 سم</span><span>275 سم (أقصى)</span></div>
+    </div>
+  </div>
+
+  <!-- RESULTS -->
+  <div class="results-grid">
+    <div class="result-card blue wide">
+      <div class="result-label">الحجم المحسوب</div>
+      <div class="result-value big" id="volumeVal">--,---</div>
+      <div class="result-unit">لتر</div>
+      <div class="fill-bar-wrap">
+        <div class="fill-bar-track">
+          <div class="fill-bar-fill" id="fillBar" style="width:0%"></div>
+        </div>
+      </div>
+    </div>
+
+    <div class="result-card gold">
+      <div class="result-label">نسبة الامتلاء</div>
+      <div class="result-value" id="pctVal">--%</div>
+      <div class="result-unit">من السعة الكاملة</div>
+    </div>
+
+    <div class="result-card green">
+      <div class="result-label">الحجم المتبقي</div>
+      <div class="result-value" id="remainVal">--,---</div>
+      <div class="result-unit">لتر</div>
+    </div>
+
+    <div class="result-card blue">
+      <div class="result-label">الارتفاع المُدخل</div>
+      <div class="result-value" id="heightVal">---</div>
+      <div class="result-unit">سنتيمتر</div>
+    </div>
+
+    <div class="result-card blue">
+      <div class="result-label">السعة القصوى</div>
+      <div class="result-value">21,035</div>
+      <div class="result-unit">لتر</div>
+    </div>
+  </div>
+
+  <!-- INSTALL HINT -->
+  <div class="install-hint">
+    <span class="ico">📲</span>
+    <span>لتثبيت التطبيق: افتح قائمة المتصفح ← "إضافة إلى الشاشة الرئيسية"</span>
+  </div>
+
+  <!-- FOOTER -->
+  <div class="footer-note">
+    جدول معايرة فعلي · <span>55 نقطة قياس</span> · استيفاء خطي بين القراءات<br>
+    النطاق: 5 سم ← 275 سم
+  </div>
+</div>
+
+<script>
+// ══════════════════════════════════════════
+// CALIBRATION DATA (actual measured values)
+// ══════════════════════════════════════════
+const CALIB = [
+  [5,83],[10,232],[15,480],[20,745],[25,1000],[30,1275],[35,1575],[40,1895],
+  [45,2240],[50,2590],[55,2960],[60,3330],[65,3715],[70,4120],[75,4540],
+  [80,4960],[85,5405],[90,5850],[95,6300],[100,6746],[105,7195],[110,7660],
+  [115,8110],[120,8590],[125,9075],[130,9560],[135,10010],[140,10470],[145,10945],
+  [150,11435],[155,11905],[160,12370],[165,12830],[170,13310],[175,13770],
+  [180,14235],[185,14695],[190,15140],[195,15550],[200,15958],[205,16475],
+  [210,16835],[215,17265],[220,17825],[225,18155],[230,18525],[235,18855],
+  [240,19205],[245,19515],[250,19855],[255,20135],[260,20355],[265,20590],
+  [270,20915],[275,21035]
+];
+const MAX_VOL = CALIB[CALIB.length - 1][1];
+const MAX_H   = CALIB[CALIB.length - 1][0];
+const MIN_H   = CALIB[0][0];
+
+function getVolume(h) {
+  if (h < MIN_H || h > MAX_H) return null;
+  // Exact match
+  for (let i = 0; i < CALIB.length; i++) {
+    if (CALIB[i][0] === h) return CALIB[i][1];
+  }
+  // Linear interpolation
+  let lo = 0;
+  for (let i = 0; i < CALIB.length - 1; i++) {
+    if (CALIB[i][0] <= h && CALIB[i+1][0] > h) { lo = i; break; }
+  }
+  const [h1, v1] = CALIB[lo];
+  const [h2, v2] = CALIB[lo + 1];
+  return v1 + (h - h1) * (v2 - v1) / (h2 - h1);
+}
+
+function fmt(n) {
+  return Math.round(n).toLocaleString('ar-SA');
+}
+
+// ── DOM refs ──
+const heightInput  = document.getElementById('heightInput');
+const heightSlider = document.getElementById('heightSlider');
+const volumeVal    = document.getElementById('volumeVal');
+const pctVal       = document.getElementById('pctVal');
+const remainVal    = document.getElementById('remainVal');
+const heightVal    = document.getElementById('heightVal');
+const fillBar      = document.getElementById('fillBar');
+const statusDot    = document.getElementById('statusDot');
+const statusLabel  = document.getElementById('statusLabel');
+const statusPct    = document.getElementById('statusPct');
+const waterRect    = document.getElementById('waterRect');
+const waveRect     = document.getElementById('waveRect');
+const levelLine    = document.getElementById('levelLine');
+const levelLabel   = document.getElementById('levelLabel');
+
+// SVG tank dims
+const TANK_TOP    = 10;   // y top of tank interior
+const TANK_BOT    = 150;  // y bottom of tank interior
+const TANK_HEIGHT = TANK_BOT - TANK_TOP;
+
+function update() {
+  const h = parseFloat(heightInput.value);
+  const vol = getVolume(h);
+
+  heightVal.textContent = isNaN(h) ? '---' : h;
+
+  if (vol === null || isNaN(h)) {
+    volumeVal.textContent = 'خارج النطاق';
+    pctVal.textContent    = '--%';
+    remainVal.textContent = '---';
+    fillBar.style.width   = '0%';
+    statusDot.style.background = '#666';
+    statusLabel.textContent   = 'خارج نطاق القياس';
+    statusPct.textContent     = '--%';
+    // Reset tank
+    waterRect.setAttribute('y', TANK_BOT);
+    waterRect.setAttribute('height', 0);
+    waveRect.setAttribute('y', TANK_BOT - 8);
+    levelLine.setAttribute('y1', TANK_BOT);
+    levelLine.setAttribute('y2', TANK_BOT);
+    levelLabel.setAttribute('y', TANK_BOT - 4);
+    levelLabel.textContent = 'خارج النطاق';
+    return;
+  }
+
+  const pct    = vol / MAX_VOL;
+  const remain = MAX_VOL - vol;
+
+  // Update text
+  animatePop(volumeVal, fmt(vol));
+  animatePop(pctVal,    (pct * 100).toFixed(1) + '%');
+  animatePop(remainVal, fmt(remain));
+
+  // Fill bar
+  fillBar.style.width = (pct * 100).toFixed(1) + '%';
+  fillBar.style.background = pct < .25
+    ? 'linear-gradient(90deg,#b5251a,#e63946)'
+    : pct < .75
+    ? 'linear-gradient(90deg,#d4820a,#f4a261)'
+    : 'linear-gradient(90deg,#1b6ca8,#00b4d8)';
+
+  // Status
+  statusPct.textContent = (pct * 100).toFixed(1) + '%';
+  if (pct < 0.25) {
+    statusDot.style.background = '#e63946';
+    statusLabel.textContent = '⚠ مستوى منخفض';
+    statusLabel.style.color = '#e63946';
+  } else if (pct < 0.75) {
+    statusDot.style.background = '#2dc653';
+    statusLabel.textContent = '✔ مستوى جيد';
+    statusLabel.style.color = '#2dc653';
+  } else {
+    statusDot.style.background = '#f4a261';
+    statusLabel.textContent = '★ الخزان ممتلئ';
+    statusLabel.style.color = '#f4a261';
+  }
+
+  // ── Animate tank SVG ──
+  // Water rect: top = TANK_BOT - pct*TANK_HEIGHT
+  const waterY      = TANK_BOT - pct * TANK_HEIGHT;
+  const waterHeight = TANK_BOT - waterY;
+  waterRect.setAttribute('y', waterY);
+  waterRect.setAttribute('height', waterHeight + 10);
+
+  // Wave sits at water surface
+  waveRect.setAttribute('y', waterY - 8);
+
+  // Level indicator line
+  levelLine.setAttribute('y1', waterY);
+  levelLine.setAttribute('y2', waterY);
+  levelLabel.setAttribute('y', waterY - 4);
+  levelLabel.textContent = h.toFixed(1) + ' سم';
+}
+
+function animatePop(el, val) {
+  if (el.textContent !== val) {
+    el.textContent = val;
+    el.classList.remove('pop');
+    void el.offsetWidth;
+    el.classList.add('pop');
+  }
+}
+
+// Sync slider ↔ input
+heightSlider.addEventListener('input', () => {
+  heightInput.value = heightSlider.value;
+  update();
+});
+heightInput.addEventListener('input', () => {
+  const v = parseFloat(heightInput.value);
+  if (!isNaN(v)) heightSlider.value = Math.min(Math.max(v, 5), 275);
+  update();
+});
+
+// Init
+update();
+</script>
+</body>
+</html>
